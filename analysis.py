@@ -24,6 +24,7 @@ class TeamForm:
     losses: int
     avg_scored: float
     avg_conceded: float
+    has_data: bool = True
 
 @dataclass
 class PredictionResult:
@@ -48,39 +49,28 @@ def normalize_game(sport: str, raw: dict) -> Game:
     status = fixture.get("status", {}).get("short") or raw.get("status") or "NS"
     
     league = raw.get("league") or {}
-    league_id = league.get("id")
-    season = league.get("season")
-    
     teams = raw.get("teams") or {}
     home_team = teams.get("home") or {}
     away_team = teams.get("away") or {}
-    
-    home_id = home_team.get("id") or 1
-    away_id = away_team.get("id") or 2
-    home_name = home_team.get("name") or "Ev Sahibi"
-    away_name = away_team.get("name") or "Deplasman"
-    
     goals = raw.get("goals") or raw.get("scores") or {}
-    home_score = goals.get("home")
-    away_score = goals.get("away")
     
     return Game(
         id=int(f_id),
-        home_id=int(home_id),
-        away_id=int(away_id),
-        home_name=str(home_name),
-        away_name=str(away_name),
+        home_id=int(home_team.get("id") or 1),
+        away_id=int(away_team.get("id") or 2),
+        home_name=str(home_team.get("name") or "Ev Sahibi"),
+        away_name=str(away_team.get("name") or "Deplasman"),
         date=str(date_str),
         status_short=str(status),
-        league_id=league_id,
-        season=season,
-        home_score=home_score,
-        away_score=away_score
+        league_id=league.get("id"),
+        season=league.get("season"),
+        home_score=goals.get("home"),
+        away_score=goals.get("away")
     )
 
 def compute_form(sport: str, games: list, team_id: int) -> TeamForm:
     if not games:
-        return TeamForm(form_string="G-B-M-G-G", wins=3, draws=1, losses=1, avg_scored=1.6, avg_conceded=1.1)
+        return TeamForm(form_string="Veri Yok", wins=0, draws=0, losses=0, avg_scored=0.0, avg_conceded=0.0, has_data=False)
     
     wins, draws, losses = 0, 0, 0
     scored_total, conceded_total = 0, 0
@@ -108,27 +98,29 @@ def compute_form(sport: str, games: list, team_id: int) -> TeamForm:
             losses += 1
             form_chars.append("M")
             
-    count = max(1, len(form_chars))
-    form_str = "-".join(form_chars) if form_chars else "G-B-M-G-G"
-    
+    count = len(form_chars)
+    if count == 0:
+        return TeamForm(form_string="Veri Yok", wins=0, draws=0, losses=0, avg_scored=0.0, avg_conceded=0.0, has_data=False)
+        
     return TeamForm(
-        form_string=form_str,
+        form_string="-".join(form_chars),
         wins=wins,
         draws=draws,
         losses=losses,
-        avg_scored=round(scored_total / count, 2) if form_chars else 1.5,
-        avg_conceded=round(conceded_total / count, 2) if form_chars else 1.1
+        avg_scored=round(scored_total / count, 2),
+        avg_conceded=round(conceded_total / count, 2),
+        has_data=True
     )
 
 def standing_strength(standings_flat: list, team_id: int) -> Optional[float]:
     if not standings_flat:
-        return 0.65
+        return None
     for rank, item in enumerate(standings_flat, 1):
         t_id = item.get("team", {}).get("id") or item.get("id")
         if t_id == team_id:
             total_teams = max(20, len(standings_flat))
             return round(1.0 - (rank / total_teams), 2)
-    return 0.50
+    return None
 
 def most_recent_completed_date(sport: str, games: list) -> Optional[str]:
     if not games:
@@ -168,67 +160,72 @@ def build_prediction(
     home_name: str,
     away_name: str,
 ) -> PredictionResult:
-    # 1. Form ve Saha Avantajı
-    h_form_pts = (home_form.wins * 3 + home_form.draws) * 5
-    a_form_pts = (away_form.wins * 3 + away_form.draws) * 5
     
-    # 2. Lig Güç Seviyesi
-    h_stand_pts = (home_standing_strength or 0.5) * 35
-    a_stand_pts = (away_standing_strength or 0.5) * 35
-    
-    # 3. Yorgunluk ve Sakatlık Faktörleri
-    h_rest_bonus = 6 if home_rest >= 4 else -4
-    a_rest_bonus = 6 if away_rest >= 4 else -4
-    h_inj_penalty = (home_injuries or 0) * 3
-    a_inj_penalty = (away_injuries or 0) * 3
-    
-    # Toplam Algoritma Puanları
-    home_score = max(10, h_form_pts + h_stand_pts + 10 + h_rest_bonus - h_inj_penalty)
-    away_score = max(10, a_form_pts + a_stand_pts + a_rest_bonus - a_inj_penalty)
-    total = home_score + away_score
-    
-    model_home = round(home_score / total, 2)
-    model_away = round(away_score / total, 2)
-    model_draw = round(max(0.12, 1.0 - (model_home + model_away)), 2)
-    
-    # Bahis Şirketi Oran Analizi
+    # 1. Bahis Oranı Algılanmış mı?
     market_home, market_draw, market_away = None, None, None
     if isinstance(odds_values, dict) and "1" in odds_values:
         try:
             o1, ox, o2 = float(odds_values["1"]), float(odds_values["X"]), float(odds_values["2"])
             inv_sum = (1/o1) + (1/ox) + (1/o2)
-            market_home, market_draw, market_away = round((1/o1)/inv_sum, 2), round((1/ox)/inv_sum, 2), round((1/o2)/inv_sum, 2)
+            market_home = round((1/o1)/inv_sum, 2)
+            market_draw = round((1/ox)/inv_sum, 2)
+            market_away = round((1/o2)/inv_sum, 2)
         except Exception:
             pass
 
-    # Nihai Olasılıklar
-    if market_home is not None:
-        final_home = round(model_home * 0.6 + market_home * 0.4, 2)
-        final_draw = round(model_draw * 0.6 + market_draw * 0.4, 2)
-        final_away = round(model_away * 0.6 + market_away * 0.4, 2)
-    else:
-        final_home, final_draw, final_away = model_home, model_draw, model_away
+    # 2. Gerçek Veri Var mı Kontrolü
+    has_real_data = home_form.has_data or away_form.has_data or (home_standing_strength is not None)
 
-    # 6 Faktörlü Arayüz Detay Kırılımı
+    if not has_real_data:
+        # Veri yoksa orana bak, oran da yoksa dengeli ver
+        if market_home is not None:
+            m_h, m_d, m_a = market_home, market_draw, market_away
+        else:
+            m_h, m_d, m_a = 0.40, 0.28, 0.32
+            
+        breakdown = [
+            ("Analiz Durumu", "Yetersiz API Verisi"),
+            ("Son 5 Maç Formu", "Veri Bulunamadı"),
+            ("Saha Avantajı", "Veri Bulunamadı"),
+            ("Gol Ortalaması", "Veri Bulunamadı"),
+            ("Lig Sıralaması", "Veri Bulunamadı"),
+            ("Sakatlık / Eksik", "Veri Bulunamadı")
+        ]
+        return PredictionResult(
+            breakdown=breakdown,
+            model_home=m_h, model_draw=m_d, model_away=m_a,
+            market_home=market_home, market_draw=market_draw, market_away=market_away,
+            final_home=m_h, final_draw=m_d, final_away=m_a
+        )
+
+    # 3. Gerçek Verilerle Hesaplama
+    h_score = (home_form.wins * 3 + home_form.draws) * 6 + ((home_standing_strength or 0.5) * 30) + 8
+    a_score = (away_form.wins * 3 + away_form.draws) * 6 + ((away_standing_strength or 0.5) * 30)
+    d_score = max(5, (h_score + a_score) * 0.25)
+
+    tot = h_score + a_score + d_score
+    m_h, m_d, m_a = round(h_score/tot, 2), round(d_score/tot, 2), round(a_score/tot, 2)
+
+    if market_home is not None:
+        f_h = round(m_h * 0.6 + market_home * 0.4, 2)
+        f_d = round(m_d * 0.6 + market_draw * 0.4, 2)
+        f_a = round(1.0 - (f_h + f_d), 2)
+    else:
+        f_h, f_d, f_a = m_h, m_d, m_a
+
     breakdown = [
         ("Son 5 Maç Formu", f"{home_form.form_string} vs {away_form.form_string}"),
-        ("Saha Avantajı (İç/Dış)", f"{home_venue_form.form_string} vs {away_venue_form.form_string}"),
-        ("Gol Ortalamaları", f"{home_form.avg_scored} Gol vs {away_form.avg_scored} Gol"),
+        ("Saha Avantajı", f"{home_venue_form.form_string} vs {away_venue_form.form_string}"),
+        ("Gol Ortalamaları", f"{home_form.avg_scored} vs {away_form.avg_scored}"),
         ("Lig Derece Gücü", f"%{int((home_standing_strength or 0.5)*100)} vs %{int((away_standing_strength or 0.5)*100)}"),
         ("Dinlenme Süresi", f"{home_rest} Gün vs {away_rest} Gün"),
-        ("Sakat / Eksik Sayısı", f"{home_injuries or 0} vs {away_injuries or 0}"),
+        ("Sakat Sayısı", f"{home_injuries or 0} vs {away_injuries or 0}")
     ]
 
     return PredictionResult(
         breakdown=breakdown,
-        model_home=model_home,
-        model_draw=model_draw,
-        model_away=model_away,
-        market_home=market_home,
-        market_draw=market_draw,
-        market_away=market_away,
-        final_home=final_home,
-        final_draw=final_draw,
-        final_away=final_away,
+        model_home=m_h, model_draw=m_d, model_away=m_a,
+        market_home=market_home, market_draw=market_draw, market_away=market_away,
+        final_home=f_h, final_draw=f_d, final_away=f_a
     )
     

@@ -51,7 +51,7 @@ async def api_fixtures(sport: str = Query(...)):
         raise HTTPException(502, f"Maçlar alınırken hata: {e}")
 
     out = []
-    for raw in fixtures[:40]:
+    for raw in fixtures:
         g = normalize_game(sport, raw)
         out.append({
             "fixture_id": g.id,

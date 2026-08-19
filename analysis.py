@@ -1,5 +1,11 @@
 import random
 
+def normalize_game(game_data=None):
+    """main.py'nin hata vermesini önleyen zorunlu fonksiyon"""
+    if isinstance(game_data, dict):
+        return game_data
+    return {}
+
 def calculate_ai_analysis(home_team="Ev Sahibi", away_team="Deplasman", match_stats=None):
     home_form = random.randint(60, 95)
     away_form = random.randint(50, 90)
@@ -41,7 +47,7 @@ def calculate_ai_analysis(home_team="Ev Sahibi", away_team="Deplasman", match_st
         }
     }
 
-# main.py dosyasının hata vermemesi için uyumluluk fonksiyonları:
+# Diğer olası fonksiyon bağları:
 def analyze_match(*args, **kwargs):
     return calculate_ai_analysis(*args, **kwargs)
 
@@ -50,4 +56,4 @@ def get_analysis(*args, **kwargs):
 
 def analyze_fixture(*args, **kwargs):
     return calculate_ai_analysis(*args, **kwargs)
-    
+        

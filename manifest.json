@@ -1,0 +1,12 @@
+{
+  "name": "Maç Skor Tahtası",
+  "short_name": "Maç Analiz",
+  "description": "Maç öncesi çok faktörlü futbol ve basketbol analizi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D1B2A",
+  "theme_color": "#0D1B2A",
+  "icons": [
+    { "src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

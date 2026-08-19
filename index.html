@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Maç Skor Tahtası</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0D1B2A">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0D1B2A;
+    --panel:#132840;
+    --panel-2:#0F2136;
+    --line: rgba(234,242,245,0.08);
+    --text:#EAF2F5;
+    --muted:#8FA3B0;
+    --gold:#F4B942;
+    --green:#4CAF7D;
+    --red:#E2574C;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(244,185,66,0.08), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding-bottom:48px;
+  }
+  header{
+    padding:28px 20px 18px;
+    text-align:center;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    font-size:26px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+  }
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px var(--gold);}
+  .tagline{color:var(--muted);font-size:13px;margin-top:6px;letter-spacing:0.03em;}
+
+  .sport-tabs{
+    display:flex;
+    gap:10px;
+    padding:16px 20px 0;
+    max-width:480px;
+    margin:0 auto;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:12px 8px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    font-family:'Oswald', sans-serif;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    font-size:14px;
+    font-weight:600;
+    color:var(--muted);
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .tab.active{
+    color:#0D1B2A;
+    background:var(--gold);
+    border-color:var(--gold);
+  }
+
+  main{max-width:480px;margin:0 auto;padding:16px 20px;}
+
+  .board-label{
+    font-family:'Space Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:18px 0 8px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .board-label::after{content:"";flex:1;height:1px;background:var(--line);}
+
+  .fixture-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px 14px;
+    margin-bottom:8px;
+    cursor:pointer;
+    transition:border-color .15s ease, transform .1s ease;
+  }
+  .fixture-row:active{transform:scale(0.98);}
+  .fixture-row:hover{border-color:rgba(244,185,66,0.4);}
+  .fixture-time{
+    font-family:'Space Mono', monospace;
+    font-size:13px;
+    color:var(--gold);
+    width:44px;
+    flex-shrink:0;
+  }
+  .fixture-teams{
+    font-size:14px;
+    font-weight:500;
+    line-height:1.4;
+  }
+  .fixture-teams .vs{color:var(--muted); font-size:11px; margin:0 4px;}
+
+  .empty, .loading, .error{
+    text-align:center;
+    color:var(--muted);
+    padding:40px 10px;
+    font-size:14px;
+  }
+  .error{color:var(--red);}
+  .spinner{
+    width:28px;height:28px;
+    border:3px solid var(--line);
+    border-top-color:var(--gold);
+    border-radius:50%;
+    margin:0 auto 12px;
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .back-btn{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--muted);
+    font-family:'Space Mono', monospace;
+    font-size:12px;
+    padding:8px 12px;
+    border-radius:6px;
+    cursor:pointer;
+    margin-bottom:16px;
+  }
+
+  .matchup{
+    text-align:center;
+    padding:8px 0 20px;
+  }
+  .matchup .team{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    font-size:22px;
+    text-transform:uppercase;
+    letter-spacing:0.02em;
+  }
+  .matchup .vs-divider{
+    color:var(--gold);
+    font-family:'Space Mono', monospace;
+    font-size:12px;
+    margin:6px 0;
+    letter-spacing:0.2em;
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .panel h3{
+    font-family:'Oswald', sans-serif;
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--gold);
+    margin:0 0 12px;
+  }
+
+  .form-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:10px;}
+  .form-row:last-child{margin-bottom:0;}
+  .form-row .name{font-size:13px; font-weight:600; flex-shrink:0; width:90px;}
+  .flaps{display:flex; gap:3px;}
+  .flap{
+    width:20px;height:24px;
+    border-radius:3px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Mono', monospace;
+    font-size:11px;
+    font-weight:700;
+    color:#0D1B2A;
+  }
+  .flap.G{background:var(--green);}
+  .flap.B{background:var(--gold);}
+  .flap.M{background:var(--red);}
+  .avg{font-family:'Space Mono', monospace; font-size:11px; color:var(--muted); text-align:right; flex-shrink:0;}
+
+  .h2h-row{
+    display:flex;justify-content:space-between;
+    font-family:'Space Mono', monospace;
+    font-size:12px;
+    padding:6px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .h2h-row:last-child{border-bottom:none;}
+  .h2h-row .d{color:var(--muted);}
+
+  .factor{margin-bottom:12px;}
+  .factor:last-child{margin-bottom:0;}
+  .factor .flabel{
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:5px;
+    display:flex;
+    justify-content:space-between;
+  }
+  .tugbar{
+    position:relative;
+    height:8px;
+    background:var(--panel-2);
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .tugbar::before{
+    content:"";
+    position:absolute;
+    left:50%; top:0; bottom:0;
+    width:1px;
+    background:var(--line);
+  }
+  .tugfill{
+    position:absolute;
+    top:0; bottom:0;
+    background:var(--gold);
+    border-radius:4px;
+  }
+  .no-data{font-size:11px; color:var(--muted); font-style:italic;}
+
+  .predict-grid{
+    display:flex;
+    gap:8px;
+    text-align:center;
+  }
+  .predict-cell{
+    flex:1;
+    background:var(--panel-2);
+    border-radius:8px;
+    padding:12px 4px;
+  }
+  .predict-cell .pct{
+    font-family:'Space Mono', monospace;
+    font-weight:700;
+    font-size:22px;
+    color:var(--gold);
+  }
+  .predict-cell.win .pct{color:var(--green);}
+  .predict-cell .plabel{
+    font-size:10px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    margin-top:4px;
+  }
+
+  .disclaimer{
+    font-size:11px;
+    color:var(--muted);
+    line-height:1.5;
+    padding:12px 4px 0;
+    text-align:center;
+  }
+
+  .section-title{
+    font-family:'Oswald', sans-serif;
+    font-size:14px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    margin:20px 0 10px;
+    color:var(--text);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="dot"></span>MAÇ SKOR TAHTASI</div>
+  <div class="tagline">Maç öncesi çok faktörlü analiz</div>
+</header>
+
+<div class="sport-tabs">
+  <div class="tab active" data-sport="futbol">⚽ Futbol</div>
+  <div class="tab" data-sport="basketbol">🏀 Basketbol</div>
+</div>
+
+<main id="app">
+  <div class="loading"><div class="spinner"></div>Maçlar yükleniyor...</div>
+</main>
+
+<script>
+const API = "";
+let currentSport = "futbol";
+const app = document.getElementById("app");
+
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    currentSport = tab.dataset.sport;
+    loadFixtures();
+  });
+});
+
+async function loadFixtures(){
+  app.innerHTML = `<div class="loading"><div class="spinner"></div>Bugünün maçları yükleniyor...</div>`;
+  try{
+    const res = await fetch(`${API}/api/fixtures?sport=${currentSport}`);
+    if(!res.ok) throw new Error("Sunucu hatası");
+    const data = await res.json();
+    renderFixtures(data.fixtures);
+  }catch(e){
+    app.innerHTML = `<div class="error">❌ Maçlar yüklenemedi.<br>${e.message}</div>`;
+  }
+}
+
+function renderFixtures(fixtures){
+  if(!fixtures.length){
+    app.innerHTML = `<div class="empty">Bugün için maç bulunamadı.</div>`;
+    return;
+  }
+  const rows = fixtures.map(f => {
+    const time = f.date ? f.date.slice(11,16) : "--:--";
+    return `<div class="fixture-row" data-id="${f.fixture_id}">
+      <div class="fixture-time">${time}</div>
+      <div class="fixture-teams">${f.home_name}<span class="vs">vs</span>${f.away_name}</div>
+    </div>`;
+  }).join("");
+  app.innerHTML = `<div class="board-label">Bugünün Maçları</div>${rows}`;
+  document.querySelectorAll(".fixture-row").forEach(row => {
+    row.addEventListener("click", () => loadAnalysis(row.dataset.id));
+  });
+}
+
+async function loadAnalysis(fixtureId){
+  app.innerHTML = `<div class="loading"><div class="spinner"></div>Analiz ediliyor (form, sıralama, oranlar...)</div>`;
+  try{
+    const res = await fetch(`${API}/api/analyze?sport=${currentSport}&fixture_id=${fixtureId}`);
+    if(!res.ok){
+      const err = await res.json().catch(()=>({detail:"Bilinmeyen hata"}));
+      throw new Error(err.detail || "Sunucu hatası");
+    }
+    const data = await res.json();
+    renderAnalysis(data);
+  }catch(e){
+    app.innerHTML = `<button class="back-btn" onclick="loadFixtures()">← Listeye dön</button>
+      <div class="error">❌ Analiz alınamadı.<br>${e.message}</div>`;
+  }
+}
+
+function flapRow(formString){
+  return [...formString].map(c => `<div class="flap ${c}">${c}</div>`).join("") || "<span class='no-data'>veri yok</span>";
+}
+
+function factorBar(name, value){
+  if(value === null || value === undefined){
+    return `<div class="factor">
+      <div class="flabel"><span>${name}</span><span class="no-data">veri yok</span></div>
+      <div class="tugbar"></div>
+    </div>`;
+  }
+  const pct = Math.max(-1, Math.min(1, value)) * 50; // -50..50
+  const left = pct < 0 ? 50 + pct : 50;
+  const width = Math.abs(pct);
+  const color = value > 0.15 ? "var(--green)" : (value < -0.15 ? "var(--red)" : "var(--gold)");
+  const dirLabel = value > 0.15 ? "Ev sahibi" : (value < -0.15 ? "Deplasman" : "Dengeli");
+  return `<div class="factor">
+    <div class="flabel"><span>${name}</span><span>${dirLabel}</span></div>
+    <div class="tugbar"><div class="tugfill" style="left:${left}%; width:${width}%; background:${color};"></div></div>
+  </div>`;
+}
+
+function renderAnalysis(d){
+  const hasDraw = d.sport === "futbol";
+
+  const h2hRows = d.h2h.length
+    ? d.h2h.map(h => `<div class="h2h-row"><span class="d">${h.date}</span><span>${h.home_name} ${h.home_score}-${h.away_score} ${h.away_name}</span></div>`).join("")
+    : `<div class="no-data">Geçmiş karşılaşma verisi bulunamadı.</div>`;
+
+  const factorsHtml = d.breakdown.map(f => factorBar(f.name, f.value)).join("");
+
+  const modelHtml = `
+    <div class="predict-grid">
+      <div class="predict-cell win"><div class="pct">%${d.model.home}</div><div class="plabel">${d.home_name}</div></div>
+      ${hasDraw ? `<div class="predict-cell"><div class="pct">%${d.model.draw}</div><div class="plabel">Berabere</div></div>` : ""}
+      <div class="predict-cell"><div class="pct">%${d.model.away}</div><div class="plabel">${d.away_name}</div></div>
+    </div>`;
+
+  let marketHtml = `<div class="no-data">Bu maç için bahis oranı verisi bulunamadı.</div>`;
+  let finalHtml = "";
+  if(d.market){
+    marketHtml = `
+      <div class="predict-grid">
+        <div class="predict-cell"><div class="pct">%${d.market.home}</div><div class="plabel">${d.home_name}</div></div>
+        ${hasDraw ? `<div class="predict-cell"><div class="pct">%${d.market.draw}</div><div class="plabel">Berabere</div></div>` : ""}
+        <div class="predict-cell"><div class="pct">%${d.market.away}</div><div class="plabel">${d.away_name}</div></div>
+      </div>`;
+    finalHtml = `
+      <div class="section-title">✅ Nihai Tahmin</div>
+      <div class="panel">
+        <div class="predict-grid">
+          <div class="predict-cell win"><div class="pct">%${d.final.home}</div><div class="plabel">${d.home_name}</div></div>
+          ${hasDraw ? `<div class="predict-cell"><div class="pct">%${d.final.draw}</div><div class="plabel">Berabere</div></div>` : ""}
+          <div class="predict-cell win"><div class="pct">%${d.final.away}</div><div class="plabel">${d.away_name}</div></div>
+        </div>
+      </div>`;
+  }
+
+  app.innerHTML = `
+    <button class="back-btn" onclick="loadFixtures()">← Listeye dön</button>
+    <div class="matchup">
+      <div class="team">${d.home_name}</div>
+      <div class="vs-divider">— VS —</div>
+      <div class="team">${d.away_name}</div>
+    </div>
+
+    <div class="panel">
+      <h3>Son Form</h3>
+      <div class="form-row">
+        <div class="name">${d.home_name}</div>
+        <div class="flaps">${flapRow(d.home_form.form_string)}</div>
+        <div class="avg">A:${d.home_form.avg_scored} Y:${d.home_form.avg_conceded}</div>
+      </div>
+      <div class="form-row">
+        <div class="name">${d.away_name}</div>
+        <div class="flaps">${flapRow(d.away_form.form_string)}</div>
+        <div class="avg">A:${d.away_form.avg_scored} Y:${d.away_form.avg_conceded}</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Head-to-Head</h3>
+      ${h2hRows}
+    </div>
+
+    <div class="panel">
+      <h3>Faktör Analizi</h3>
+      ${factorsHtml}
+    </div>
+
+    <div class="section-title">🔮 Model Tahmini</div>
+    <div class="panel">${modelHtml}</div>
+
+    <div class="section-title">💰 Piyasa Oranı</div>
+    <div class="panel">${marketHtml}</div>
+
+    ${finalHtml}
+
+    <div class="disclaimer">⚠️ Bu tahmin; form, sıralama, averaj, dinlenme ve (varsa) sakatlık/oran verilerine dayanan şeffaf bir istatistiksel değerlendirmedir. Kesin sonuç garantisi taşımaz, bahis tavsiyesi değildir.</div>
+  `;
+}
+
+loadFixtures();
+</script>
+</body>
+</html>
